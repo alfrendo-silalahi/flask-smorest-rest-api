@@ -1,5 +1,6 @@
 import uuid
 from flask import Flask, request
+from flask_smorest import abort
 from db import items, stores
 
 app = Flask(__name__)
@@ -24,7 +25,7 @@ def get_store(store_id):
     try:
         return stores[store_id]
     except KeyError:
-        return {"message": "store not found"}, 404
+        abort(404, message="store not found")
 
 
 @app.get("/api/items")
@@ -35,9 +36,19 @@ def get_items():
 @app.post("/api/items")
 def create_item():
     store_id = request.args.get("store_id")
-    if store_id not in stores:
-        return {"message": "store not found"}, 404
     item_data = request.get_json()
+    if (
+        "price" not in item_data
+        or "store_id" not in item_data
+        or "name" not in item_data
+    ):
+        abort(
+            404,
+            message="bad request :: ensure 'price' and 'name' are included in the json payload",
+        )
+
+    if store_id not in stores:
+        abort(404, message="store not found")
     item_id = uuid.uuid4().hex
     new_item = {**item_data, "id": item_id, "store_id": store_id}
     items[item_id] = new_item
@@ -49,4 +60,4 @@ def get_item(item_id):
     try:
         return items[item_id]
     except KeyError:
-        return {"message": "item not found"}, 404
+        abort(404, message="item not found")
