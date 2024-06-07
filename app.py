@@ -1,83 +1,21 @@
 import uuid
 from flask import Flask, request
-from flask_smorest import abort
+from flask_smorest import abort, Api
 from db import items, stores
+from resources.item import blueprint as ImportBlueprint
+from resources.store import blueprint as StoreBlueprint
 
 app = Flask(__name__)
 
+app.config["PROPAGATE_EXCEPTIONS"] = True
+app.config["API_TITLE"] = "Goods Store API"
+app.config["API_VERSION"] = "v1.0.0"
+app.config["OPENAPI_VERSION"] = "3.0.3"
+app.config["OPENAPI_URL_PREFIX"] = "/"
+app.config["OPENAPI_SWAGGER_UI_PATH"] = "/swagger-ui"
+app.config["OPENAPI_SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
 
-@app.get("/api/stores")
-def get_stores():
-    return {"stores": list(stores.values())}
+api = Api(app)
 
-
-@app.post("/api/stores")
-def create_store():
-    store_data = request.get_json()
-    store_id = uuid.uuid4().hex
-    new_store = {**store_data, "id": store_id}
-    stores[store_id] = new_store
-    return new_store, 201
-
-
-@app.get("/api/stores/<string:store_id>")
-def get_store(store_id):
-    try:
-        return stores[store_id]
-    except KeyError:
-        abort(404, message="store not found")
-
-
-@app.get("/api/items")
-def get_items():
-    return {"items": list(items.values())}
-
-
-@app.post("/api/items")
-def create_item():
-    store_id = request.args.get("store_id")
-    item_data = request.get_json()
-    if (
-        "price" not in item_data
-        or "store_id" not in item_data
-        or "name" not in item_data
-    ):
-        abort(
-            404,
-            message="bad request :: ensure 'price' and 'name' are included in the json payload",
-        )
-
-    if store_id not in stores:
-        abort(404, message="store not found")
-    item_id = uuid.uuid4().hex
-    new_item = {**item_data, "id": item_id, "store_id": store_id}
-    items[item_id] = new_item
-    return new_item, 201
-
-
-@app.get("/api/items/<string:item_id>")
-def get_item(item_id):
-    try:
-        return items[item_id]
-    except KeyError:
-        abort(404, message="item not found")
-
-
-@app.put("/api/items/<string:item_id>")
-def update_item(item_id):
-    item_data = request.get_json()
-    try:
-        item = items[item_id]
-        item |= item_data
-        return item
-    except KeyError:
-        abort(404, message="item not found")
-
-
-@app.delete("/api/items/<string:item_id>")
-def delete_store(item_id):
-    try:
-        del items[item_id]
-        return {"message": "item deleted"}
-    except:
-        abort(404, message="item not found")
+api.register_blueprint(ImportBlueprint)
+api.register_blueprint(StoreBlueprint)
